@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="zh-Hant-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智能排班系統</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+    <style>
+        /* 下拉菜单文字隱藏解決方案 */
+        .compact-select {
+            color: transparent !important;
+        }
+        .compact-select option {
+            color: #000 !important;
+        }
+
+        /* 強化紅色文字顯示 */
+        .selected-name {
+            font-weight: 700;
+            color: #dc2626 !important;
+            margin-top: 3px;
+            font-size: 1.125rem;
+            line-height: 1.2;
+        }
+
+        select:focus {
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5);
+        }
+
+        .time-slot-morning { background-color: #f0fdf4; }
+        .time-slot-afternoon { background-color: #fff7ed; }
+        .time-slot-evening { background-color: #f5f3ff; }
+
+        .compact-select {
+            width: 100%;
+            padding: 0.25rem;
+            border: 1px solid #e5e7eb;
+            border-radius: 0.375rem;
+            background-color: rgba(255, 255, 255, 0.8);
+            font-size: 0.875rem;
+            min-width: 6rem;
+            transition: all 0.2s;
+            appearance: none;
+        }
+
+        @media (max-width: 640px) {
+            .selected-name {
+                font-size: 1rem;
+            }
+            .table-container {
+                overflow-x: auto;
+                margin: 0 -1rem;
+                width: calc(100% + 2rem);
+            }
+        }
+    </style>
+</head>
+<body class="p-4 bg-gray-100">
+    <div id="app">
+        <div class="max-w-6xl mx-auto space-y-4">
+            <!-- 控制欄 -->
+            <div class="flex flex-col md:flex-row gap-4">
+                <div class="flex-1">
+                    <div class="flex items-center gap-4">
+                        <input type="date" v-model="startDateString" 
+                               class="p-2 border rounded-md w-full max-w-[200px]">
+                        <div class="flex gap-2">
+                            <button @click="changeWeek(-1)" class="px-4 py-2 bg-gray-100 rounded-md">
+                                ◀ 上一週
+                            </button>
+                            <button @click="changeWeek(1)" class="px-4 py-2 bg-gray-100 rounded-md">
+                                下一週 ▶
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 客戶輸入 -->
+                <div class="flex-1">
+                    <div class="flex gap-2">
+                        <input type="text" v-model="newClient"
+                               @keyup.enter="addClient"
+                               class="w-32 p-2 border rounded-md"
+                               placeholder="輸入客戶">
+                        <button @click="addClient" class="px-3 py-2 bg-blue-500 text-white rounded-md text-sm">
+                            新增
+                        </button>
+                        <button @click="showManager=!showManager" 
+                                class="px-3 py-2 bg-gray-600 text-white rounded-md text-sm">
+                            管理
+                        </button>
+                    </div>
+                    
+                    <!-- 客戶管理面板 -->
+                    <div v-if="showManager" class="mt-2 p-4 bg-white rounded-md shadow">
+                        <div class="grid grid-cols-2 gap-2">
+                            <div v-for="(client, index) in clients" :key="index" 
+                                 class="flex items-center justify-between p-2 bg-gray-50 rounded">
+                                <span>{{ client }}</span>
+                                <button @click="removeClient(index)" class="text-red-500">×</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 排班表 -->
+            <div class="table-container">
+                <table class="w-full bg-white rounded-lg shadow">
+                    <thead>
+                        <tr>
+                            <th class="p-2 bg-gray-100">時段</th>
+                            <th v-for="(_, dayIndex) in 7" :key="dayIndex" 
+                                class="p-2 bg-gray-100 min-w-[110px] text-sm">
+                                週{{ ['一','二','三','四','五','六','日'][dayIndex] }}<br>
+                                <span class="text-xs text-gray-600">{{ getDate(dayIndex) }}</span>
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="(timeSlot, tIndex) in timeSlots" :key="tIndex" 
+                            :class="getTimeSlotClass(tIndex)">
+                            <td class="p-2 font-medium text-center text-sm">{{ timeSlot }}</td>
+                            <td v-for="(_, dIndex) in 7" :key="dIndex" class="p-2">
+                                <div class="flex flex-col items-center">
+                                    <select v-model="selections[tIndex][dIndex]"
+                                            @change="handleSelectClose(tIndex, dIndex, $event)"
+                                            class="compact-select">
+                                        <option value=""></option>
+                                        <option v-for="client in clients" 
+                                                :value="client"
+                                                class="text-sm">
+                                            {{ client }}
+                                        </option>
+                                    </select>
+                                    <div v-if="selections[tIndex][dIndex]" 
+                                         class="selected-name">
+                                        {{ selections[tIndex][dIndex] }}
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- 備忘錄 -->
+            <div class="bg-white rounded-lg shadow p-4">
+                <h3 class="text-lg font-semibold mb-2">備忘錄</h3>
+                <textarea v-model="memo" 
+                          class="w-full p-2 border rounded-md h-32"
+                          placeholder="輸入注意事項..."
+                          maxlength="2000"></textarea>
+                <div class="text-sm text-gray-500 mt-1">{{ memo.length }}/2000 字</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const { createApp } = Vue;
+
+        createApp({
+            data() {
+                const loadDate = () => {
+                    try {
+                        const saved = localStorage.getItem('startDate');
+                        return saved ? new Date(JSON.parse(saved)) : new Date();
+                    } catch {
+                        return new Date();
+                    }
+                };
+
+                const initSelections = () => {
+                    try {
+                        return JSON.parse(localStorage.getItem('selections')) || 
+                               Array(5).fill().map(() => Array(7).fill(''));
+                    } catch {
+                        return Array(5).fill().map(() => Array(7).fill(''));
+                    }
+                }
+
+                return {
+                    startDate: loadDate(),
+                    newClient: '',
+                    showManager: false,
+                    timeSlots: [
+                        '10:00～12:00',
+                        '13:00～15:00',
+                        '15:30～17:30',
+                        '18:30～20:30',
+                        '20:30～22:30'
+                    ],
+                    clients: JSON.parse(localStorage.getItem('clients') || '[]'),
+                    selections: initSelections(),
+                    memo: localStorage.getItem('memo') || ''
+                }
+            },
+            computed: {
+                startDateString: {
+                    get() {
+                        const year = this.startDate.getFullYear();
+                        const month = String(this.startDate.getMonth() + 1).padStart(2, '0');
+                        const date = String(this.startDate.getDate()).padStart(2, '0');
+                        return `${year}-${month}-${date}`;
+                    },
+                    set(value) {
+                        const newDate = new Date(value)
+                        if (!isNaN(newDate)) this.startDate = newDate
+                    }
+                }
+            },
+            methods: {
+                getDate(dayIndex) {
+                    const date = new Date(this.startDate)
+                    date.setDate(date.getDate() + dayIndex)
+                    return `${date.getMonth()+1}/${date.getDate()}`
+                },
+                getTimeSlotClass(tIndex) {
+                    if(tIndex < 2) return 'time-slot-morning'
+                    if(tIndex < 4) return 'time-slot-afternoon'
+                    return 'time-slot-evening'
+                },
+                handleSelectClose(tIndex, dIndex, event) {
+                    event.target.blur();
+                    this.selections[tIndex][dIndex] = event.target.value;
+                },
+                addClient() {
+                    const name = this.newClient.trim()
+                    if(name && !this.clients.includes(name)) {
+                        this.clients.push(name)
+                        this.newClient = ''
+                    }
+                },
+                removeClient(index) {
+                    this.clients.splice(index, 1)
+                },
+                changeWeek(offset) {
+                    const newDate = new Date(this.startDate)
+                    newDate.setDate(newDate.getDate() + offset * 7)
+                    this.startDate = newDate
+                }
+            },
+            watch: {
+                startDate: {
+                    handler(newDate) {
+                        localStorage.setItem('startDate', JSON.stringify(newDate))
+                    },
+                    deep: true
+                },
+                clients: {
+                    handler(newVal) {
+                        localStorage.setItem('clients', JSON.stringify(newVal))
+                    },
+                    deep: true
+                },
+                selections: {
+                    handler(newVal) {
+                        localStorage.setItem('selections', JSON.stringify(newVal))
+                    },
+                    deep: true
+                },
+                memo(newVal) {
+                    localStorage.setItem('memo', newVal)
+                }
+            }
+        }).mount('#app')
+    </script>
+</body>
+</html>

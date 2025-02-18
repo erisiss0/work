@@ -95,17 +95,25 @@
                     
                     <!-- 客戶管理面板 -->
                     <div v-if="showManager" class="mt-2 p-4 bg-white rounded-md shadow">
-                        <div class="grid grid-cols-2 gap-2">
-                            <div v-for="(client, index) in clients" :key="index" 
-                                 class="flex items-center justify-between p-2 bg-gray-50 rounded">
-                                <span>{{ client }}</span>
-                                <button @click="removeClient(index)" class="text-red-500">×</button>
-                            </div>
-                        </div>
-                    </div>
+            <div class="mb-4 flex gap-2">
+                <button @click="exportClients" 
+                        class="px-3 py-2 bg-green-500 text-white rounded-md text-sm">
+                    匯出客戶
+                </button>
+                <button @click="importClients" 
+                        class="px-3 py-2 bg-purple-500 text-white rounded-md text-sm">
+                    匯入客戶
+                </button>
+                <input type="file" ref="fileInput" class="hidden" @change="handleFileUpload">
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+                <div v-for="(client, index) in clients" :key="index" 
+                     class="flex items-center justify-between p-2 bg-gray-50 rounded">
+                    <span>{{ client }}</span>
+                    <button @click="removeClient(index)" class="text-red-500">×</button>
                 </div>
             </div>
-
+        </div>
             <!-- 排班表 -->
             <div class="table-container">
                 <table class="w-full bg-white rounded-lg shadow">
@@ -231,6 +239,46 @@
                 }
             },
             methods: {
+                exportClients() {
+                    const data = JSON.stringify(this.clients, null, 2);
+                    const blob = new Blob([data], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `clients_${new Date().toISOString().split('T')[0]}.json`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                },
+
+                importClients() {
+                    this.$refs.fileInput.click();
+                },
+
+                async handleFileUpload(event) {
+                    const file = event.target.files[0];
+                    if (!file) return;
+
+                    try {
+                        const jsonString = await file.text();
+                        const importedClients = JSON.parse(jsonString);
+                        
+                        if (!Array.isArray(importedClients) || importedClients.some(c => typeof c !== 'string')) {
+                            throw new Error('檔案格式不正確');
+                        }
+
+                        // 合併並去重
+                        const mergedClients = [...new Set([...this.clients, ...importedClients])];
+                        this.clients = mergedClients;
+                        
+                        alert(`成功匯入 ${importedClients.length} 個客戶`);
+                    } catch (error) {
+                        alert('匯入失敗：' + error.message);
+                    } finally {
+                        event.target.value = ''; // 清除選擇以允許重新選擇相同檔案
+                    }
+                },
                 getDate(dayIndex) {
                     const date = new Date(this.startDate)
                     date.setDate(date.getDate() + dayIndex)

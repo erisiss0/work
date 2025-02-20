@@ -162,36 +162,33 @@
 
         createApp({
             data() {
-                const loadDate = () => {
+                const STORAGE_KEYS = {
+                    DATE: 'startDate',
+                    CLIENTS: 'clients',
+                    SELECTIONS: 'selections',
+                    MEMO: 'memo'
+                };
+
+                const getMonday = (date) => {
+                    const newDate = new Date(date);
+                    const day = newDate.getDay();
+                    const diff = day === 0 ? -6 : 1 - day;
+                    newDate.setDate(newDate.getDate() + diff);
+                    newDate.setHours(0, 0, 0, 0);
+                    return newDate;
+                };
+
+                const loadFromStorage = (key, defaultValue) => {
                     try {
-                        const saved = localStorage.getItem('startDate');
-                        let date = saved ? new Date(JSON.parse(saved)) : new Date();
-                        const day = date.getDay();
-                        const diff = day === 0 ? -6 : 1 - day;
-                        date.setDate(date.getDate() + diff);
-                        date.setHours(0, 0, 0, 0);
-                        return date;
+                        const stored = localStorage.getItem(key);
+                        return stored ? JSON.parse(stored) : defaultValue;
                     } catch {
-                        let date = new Date();
-                        const day = date.getDay();
-                        const diff = day === 0 ? -6 : 1 - day;
-                        date.setDate(date.getDate() + diff);
-                        date.setHours(0, 0, 0, 0);
-                        return date;
+                        return defaultValue;
                     }
                 };
 
-                const initSelections = () => {
-                    try {
-                        return JSON.parse(localStorage.getItem('selections')) || 
-                               Array(5).fill().map(() => Array(7).fill(''));
-                    } catch {
-                        return Array(5).fill().map(() => Array(7).fill(''));
-                    }
-                }
-
                 return {
-                    startDate: loadDate(),
+                    startDate: loadFromStorage(STORAGE_KEYS.DATE, getMonday(new Date())),
                     newClient: '',
                     showManager: false,
                     timeSlots: [
@@ -201,60 +198,64 @@
                         '18:30～20:30',
                         '20:30～22:30'
                     ],
-                    clients: JSON.parse(localStorage.getItem('clients') || '[]'),
-                    selections: initSelections(),
-                    memo: localStorage.getItem('memo') || ''
+                    clients: loadFromStorage(STORAGE_KEYS.CLIENTS, []),
+                    selections: loadFromStorage(STORAGE_KEYS.SELECTIONS, 
+                        Array(5).fill().map(() => Array(7).fill(''))),
+                    memo: loadFromStorage(STORAGE_KEYS.MEMO, ''),
+                    storageKeys: STORAGE_KEYS
                 }
             },
             computed: {
                 startDateString: {
                     get() {
-                        const year = this.startDate.getFullYear();
-                        const month = String(this.startDate.getMonth() + 1).padStart(2, '0');
-                        const date = String(this.startDate.getDate()).padStart(2, '0');
-                        return `${year}-${month}-${date}`;
+                        return this.startDate.toISOString().split('T')[0];
                     },
                     set(value) {
-                        const newDate = new Date(value)
-                        if (!isNaN(newDate)) {
-                            const day = newDate.getDay();
-                            const diff = day === 0 ? -6 : 1 - day;
-                            newDate.setDate(newDate.getDate() + diff);
-                            newDate.setHours(0, 0, 0, 0);
-                            this.startDate = newDate
+                        const newDate = new Date(value);
+                        if (!isNaN(newDate.getTime())) {
+                            this.startDate = this.getMonday(newDate);
                         }
                     }
                 }
             },
             methods: {
+                getMonday(date) {
+                    const newDate = new Date(date);
+                    const day = newDate.getDay();
+                    const diff = day === 0 ? -6 : 1 - day;
+                    newDate.setDate(newDate.getDate() + diff);
+                    newDate.setHours(0, 0, 0, 0);
+                    return newDate;
+                },
                 getDate(dayIndex) {
-                    const date = new Date(this.startDate)
-                    date.setDate(date.getDate() + dayIndex)
-                    return `${date.getMonth()+1}/${date.getDate()}`
+                    const date = new Date(this.startDate);
+                    date.setDate(date.getDate() + dayIndex);
+                    return `${date.getMonth() + 1}/${date.getDate()}`;
                 },
                 getTimeSlotClass(tIndex) {
-                    if(tIndex < 2) return 'time-slot-morning'
-                    if(tIndex < 4) return 'time-slot-afternoon'
-                    return 'time-slot-evening'
+                    return tIndex < 2 ? 'time-slot-morning' :
+                           tIndex < 4 ? 'time-slot-afternoon' :
+                           'time-slot-evening';
                 },
                 handleSelectClose(tIndex, dIndex, event) {
-                    event.target.blur();
-                    this.selections[tIndex][dIndex] = event.target.value;
+                    const select = event.target;
+                    this.selections[tIndex][dIndex] = select.value;
+                    this.$nextTick(() => select.blur());
                 },
                 addClient() {
-                    const name = this.newClient.trim()
-                    if(name && !this.clients.includes(name)) {
-                        this.clients.push(name)
-                        this.newClient = ''
+                    const name = this.newClient.trim();
+                    if (name && !this.clients.includes(name)) {
+                        this.clients = [...this.clients, name];
+                        this.newClient = '';
                     }
                 },
                 removeClient(index) {
-                    this.clients.splice(index, 1)
+                    this.clients = this.clients.filter((_, i) => i !== index);
                 },
                 changeWeek(offset) {
-                    const newDate = new Date(this.startDate)
-                    newDate.setDate(newDate.getDate() + offset * 7)
-                    this.startDate = newDate
+                    const newDate = new Date(this.startDate);
+                    newDate.setDate(newDate.getDate() + offset * 7);
+                    this.startDate = newDate;
                 },
                 exportClients() {
                     const data = JSON.stringify(this.clients, null, 2);
@@ -263,10 +264,9 @@
                     const a = document.createElement('a');
                     a.href = url;
                     a.download = `clients_${new Date().toISOString().split('T')[0]}.json`;
-                    document.body.appendChild(a);
                     a.click();
-                    document.body.removeChild(a);
                     URL.revokeObjectURL(url);
+                    a.remove();
                 },
                 importClients() {
                     this.$refs.fileInput.click();
@@ -276,45 +276,41 @@
                     if (!file) return;
 
                     try {
-                        const jsonString = await file.text();
-                        const importedClients = JSON.parse(jsonString);
+                        const text = await file.text();
+                        const importedClients = JSON.parse(text);
                         
-                        if (!Array.isArray(importedClients) || importedClients.some(c => typeof c !== 'string')) {
+                        if (!Array.isArray(importedClients) || 
+                            importedClients.some(c => typeof c !== 'string')) {
                             throw new Error('檔案格式不正確');
                         }
 
-                        const mergedClients = [...new Set([...this.clients, ...importedClients])];
-                        this.clients = mergedClients;
-                        
+                        this.clients = [...new Set([...this.clients, ...importedClients])];
                         alert(`成功匯入 ${importedClients.length} 個客戶`);
                     } catch (error) {
-                        alert('匯入失敗：' + error.message);
+                        alert(`匯入失敗：${error.message}`);
                     } finally {
                         event.target.value = '';
                     }
+                },
+                saveToStorage(key, value) {
+                    localStorage.setItem(key, JSON.stringify(value));
                 }
             },
             watch: {
-                startDate: {
-                    handler(newDate) {
-                        localStorage.setItem('startDate', JSON.stringify(newDate))
-                    },
-                    deep: true
+                startDate(newDate) {
+                    this.saveToStorage(this.storageKeys.DATE, newDate);
                 },
-                clients: {
-                    handler(newVal) {
-                        localStorage.setItem('clients', JSON.stringify(newVal))
-                    },
-                    deep: true
+                clients(newVal) {
+                    this.saveToStorage(this.storageKeys.CLIENTS, newVal);
                 },
                 selections: {
                     handler(newVal) {
-                        localStorage.setItem('selections', JSON.stringify(newVal))
+                        this.saveToStorage(this.storageKeys.SELECTIONS, newVal);
                     },
                     deep: true
                 },
                 memo(newVal) {
-                    localStorage.setItem('memo', newVal)
+                    this.saveToStorage(this.storageKeys.MEMO, newVal);
                 }
             }
         }).mount('#app')

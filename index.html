@@ -5,8 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>智能排班系統</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <style>
+        /* 原有樣式保持不變 */
         .compact-select {
             color: transparent !important;
         }
@@ -52,6 +53,7 @@
 </head>
 <body class="p-4 bg-gray-100">
     <div id="app">
+        <!-- 原有HTML結構保持不變 -->
         <div class="max-w-6xl mx-auto space-y-4">
             <div class="flex flex-col md:flex-row gap-4">
                 <div class="flex-1">
@@ -169,26 +171,33 @@
                     MEMO: 'memo'
                 };
 
-                const getMonday = (date) => {
-                    const newDate = new Date(date);
-                    const day = newDate.getDay();
-                    const diff = day === 0 ? -6 : 1 - day;
-                    newDate.setDate(newDate.getDate() + diff);
-                    newDate.setHours(0, 0, 0, 0);
-                    return newDate;
+                const getMonday = (date = new Date()) => {
+                    const day = date.getDay();
+                    const diff = date.getDate() - day + (day === 0 ? -6 : 1);
+                    return new Date(date.setDate(diff));
                 };
 
                 const loadFromStorage = (key, defaultValue) => {
                     try {
                         const stored = localStorage.getItem(key);
                         return stored ? JSON.parse(stored) : defaultValue;
-                    } catch {
+                    } catch (e) {
+                        console.error(`Error loading ${key}:`, e);
                         return defaultValue;
                     }
                 };
 
+                const initDate = () => {
+                    const stored = localStorage.getItem(STORAGE_KEYS.DATE);
+                    if (stored) {
+                        const parsed = new Date(stored);
+                        if (!isNaN(parsed.getTime())) return parsed;
+                    }
+                    return getMonday();
+                };
+
                 return {
-                    startDate: loadFromStorage(STORAGE_KEYS.DATE, getMonday(new Date())),
+                    startDate: initDate(),
                     newClient: '',
                     showManager: false,
                     timeSlots: [
@@ -208,25 +217,17 @@
             computed: {
                 startDateString: {
                     get() {
-                        return this.startDate.toISOString().split('T')[0];
+                        return this.startDate.toISOString().slice(0, 10);
                     },
                     set(value) {
                         const newDate = new Date(value);
-                        if (!isNaN(newDate.getTime())) {
-                            this.startDate = this.getMonday(newDate);
+                        if (!isNaN(newDate)) {
+                            this.startDate = getMonday(newDate);
                         }
                     }
                 }
             },
             methods: {
-                getMonday(date) {
-                    const newDate = new Date(date);
-                    const day = newDate.getDay();
-                    const diff = day === 0 ? -6 : 1 - day;
-                    newDate.setDate(newDate.getDate() + diff);
-                    newDate.setHours(0, 0, 0, 0);
-                    return newDate;
-                },
                 getDate(dayIndex) {
                     const date = new Date(this.startDate);
                     date.setDate(date.getDate() + dayIndex);
@@ -238,19 +239,17 @@
                            'time-slot-evening';
                 },
                 handleSelectClose(tIndex, dIndex, event) {
-                    const select = event.target;
-                    this.selections[tIndex][dIndex] = select.value;
-                    this.$nextTick(() => select.blur());
+                    this.$nextTick(() => event.target.blur());
                 },
                 addClient() {
                     const name = this.newClient.trim();
                     if (name && !this.clients.includes(name)) {
-                        this.clients = [...this.clients, name];
+                        this.clients.push(name);
                         this.newClient = '';
                     }
                 },
                 removeClient(index) {
-                    this.clients = this.clients.filter((_, i) => i !== index);
+                    this.clients.splice(index, 1);
                 },
                 changeWeek(offset) {
                     const newDate = new Date(this.startDate);
@@ -258,15 +257,14 @@
                     this.startDate = newDate;
                 },
                 exportClients() {
-                    const data = JSON.stringify(this.clients, null, 2);
+                    const data = JSON.stringify(this.clients);
                     const blob = new Blob([data], { type: 'application/json' });
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement('a');
                     a.href = url;
-                    a.download = `clients_${new Date().toISOString().split('T')[0]}.json`;
+                    a.download = `clients_${new Date().toISOString().slice(0, 10)}.json`;
                     a.click();
                     URL.revokeObjectURL(url);
-                    a.remove();
                 },
                 importClients() {
                     this.$refs.fileInput.click();
@@ -277,43 +275,42 @@
 
                     try {
                         const text = await file.text();
-                        const importedClients = JSON.parse(text);
+                        const imported = JSON.parse(text);
                         
-                        if (!Array.isArray(importedClients) || 
-                            importedClients.some(c => typeof c !== 'string')) {
-                            throw new Error('檔案格式不正確');
+                        if (Array.isArray(imported)) {
+                            this.clients = [...new Set([...this.clients, ...imported])];
+                            alert(`成功匯入 ${imported.length} 個客戶`);
                         }
-
-                        this.clients = [...new Set([...this.clients, ...importedClients])];
-                        alert(`成功匯入 ${importedClients.length} 個客戶`);
                     } catch (error) {
-                        alert(`匯入失敗：${error.message}`);
-                    } finally {
-                        event.target.value = '';
+                        alert('檔案格式錯誤');
                     }
-                },
-                saveToStorage(key, value) {
-                    localStorage.setItem(key, JSON.stringify(value));
+                    event.target.value = '';
                 }
             },
             watch: {
-                startDate(newDate) {
-                    this.saveToStorage(this.storageKeys.DATE, newDate);
+                startDate: {
+                    handler(newVal) {
+                        localStorage.setItem(this.storageKeys.DATE, newVal.toISOString());
+                    },
+                    immediate: true
                 },
-                clients(newVal) {
-                    this.saveToStorage(this.storageKeys.CLIENTS, newVal);
+                clients: {
+                    handler(newVal) {
+                        localStorage.setItem(this.storageKeys.CLIENTS, JSON.stringify(newVal));
+                    },
+                    deep: true
                 },
                 selections: {
                     handler(newVal) {
-                        this.saveToStorage(this.storageKeys.SELECTIONS, newVal);
+                        localStorage.setItem(this.storageKeys.SELECTIONS, JSON.stringify(newVal));
                     },
                     deep: true
                 },
                 memo(newVal) {
-                    this.saveToStorage(this.storageKeys.MEMO, newVal);
+                    localStorage.setItem(this.storageKeys.MEMO, JSON.stringify(newVal));
                 }
             }
-        }).mount('#app')
+        }).mount('#app');
     </script>
 </body>
 </html>

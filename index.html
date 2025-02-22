@@ -7,7 +7,6 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <style>
-        /* 原有樣式保持不變 */
         .compact-select {
             color: transparent !important;
         }
@@ -39,6 +38,30 @@
             transition: all 0.2s;
             appearance: none;
         }
+        /* 新的今日列样式 */
+        .today-header {
+            background: linear-gradient(0deg, #fde68a 30%, #fffbdd 100%) !important;
+            border-right: 3px solid #f59e0b;
+            border-left: 3px solid #f59e0b;
+            position: relative;
+        }
+        .today-header::before {
+            content: "★";
+            color: #d97706;
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            font-size: 0.8rem;
+        }
+        .today-cell {
+            background-color: #fffbdd !important;
+            border-right: 2px solid #f59e0b88;
+            border-left: 2px solid #f59e0b88;
+        }
+        .date-display.today {
+            font-weight: 700;
+            color: #d97706 !important;
+        }
         @media (max-width: 640px) {
             .selected-name {
                 font-size: 1rem;
@@ -48,13 +71,22 @@
                 margin: 0 -1rem;
                 width: calc(100% + 2rem);
             }
+            /* 移动端优化 */
+            .today-header {
+                border-width: 2px;
+            }
+            .today-header::before {
+                font-size: 0.7rem;
+                top: 1px;
+                left: 1px;
+            }
         }
     </style>
 </head>
 <body class="p-4 bg-gray-100">
     <div id="app">
-        <!-- 原有HTML結構保持不變 -->
         <div class="max-w-6xl mx-auto space-y-4">
+            <!-- 界面结构保持不变 -->
             <div class="flex flex-col md:flex-row gap-4">
                 <div class="flex-1">
                     <div class="flex items-center gap-4">
@@ -115,9 +147,13 @@
                         <tr>
                             <th class="p-2 bg-gray-100">時段</th>
                             <th v-for="(_, dayIndex) in 7" :key="dayIndex" 
-                                class="p-2 bg-gray-100 min-w-[110px] text-sm">
+                                class="p-2 bg-gray-100 min-w-[110px] text-sm"
+                                :class="{'today-header': dayIndex === todayColumnIndex}">
                                 週{{ ['一','二','三','四','五','六','日'][dayIndex] }}<br>
-                                <span class="text-xs text-gray-600">{{ getDate(dayIndex) }}</span>
+                                <span class="text-xs text-gray-600 date-display" 
+                                      :class="{'today': dayIndex === todayColumnIndex}">
+                                    {{ getDate(dayIndex) }}
+                                </span>
                             </th>
                         </tr>
                     </thead>
@@ -125,7 +161,8 @@
                         <tr v-for="(timeSlot, tIndex) in timeSlots" :key="tIndex" 
                             :class="getTimeSlotClass(tIndex)">
                             <td class="p-2 font-medium text-center text-sm">{{ timeSlot }}</td>
-                            <td v-for="(_, dIndex) in 7" :key="dIndex" class="p-2">
+                            <td v-for="(_, dIndex) in 7" :key="dIndex" class="p-2"
+                                :class="{'today-cell': dIndex === todayColumnIndex}">
                                 <div class="flex flex-col items-center">
                                     <select v-model="selections[tIndex][dIndex]"
                                             @change="handleSelectClose(tIndex, dIndex, $event)"
@@ -225,6 +262,21 @@
                             this.startDate = getMonday(newDate);
                         }
                     }
+                },
+                todayColumnIndex() {
+                    const normalizeDate = (date) => {
+                        return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+                    };
+
+                    const today = normalizeDate(new Date());
+                    const weekStart = normalizeDate(this.startDate);
+                    const weekEnd = new Date(weekStart);
+                    weekEnd.setDate(weekEnd.getDate() + 6);
+
+                    if (today < weekStart || today > weekEnd) return -1;
+
+                    const diffDays = Math.floor((today - weekStart) / (1000 * 60 * 60 * 24));
+                    return diffDays;
                 }
             },
             methods: {

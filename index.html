@@ -7,12 +7,8 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <style>
-        .compact-select {
-            color: transparent !important;
-        }
-        .compact-select option {
-            color: #000 !important;
-        }
+        .compact-select { color: transparent !important; }
+        .compact-select option { color: #000 !important; }
         .selected-name {
             font-weight: 700;
             color: #dc2626 !important;
@@ -20,10 +16,7 @@
             font-size: 1.125rem;
             line-height: 1.2;
         }
-        select:focus {
-            outline: none;
-            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5);
-        }
+        select:focus { outline: none; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5); }
         .time-slot-morning { background-color: #f0fdf4; }
         .time-slot-afternoon { background-color: #fff7ed; }
         .time-slot-evening { background-color: #f5f3ff; }
@@ -38,7 +31,6 @@
             transition: all 0.2s;
             appearance: none;
         }
-        /* 新的今日列样式 */
         .today-header {
             background: linear-gradient(0deg, #fde68a 30%, #fffbdd 100%) !important;
             border-right: 3px solid #f59e0b;
@@ -63,40 +55,30 @@
             color: #d97706 !important;
         }
         @media (max-width: 640px) {
-            .selected-name {
-                font-size: 1rem;
-            }
+            .selected-name { font-size: 1rem; }
             .table-container {
                 overflow-x: auto;
                 margin: 0 -1rem;
                 width: calc(100% + 2rem);
             }
-            /* 移动端优化 */
-            .today-header {
-                border-width: 2px;
-            }
-            .today-header::before {
-                font-size: 0.7rem;
-                top: 1px;
-                left: 1px;
-            }
+            .today-header { border-width: 2px; }
+            .today-header::before { font-size: 0.7rem; top: 1px; left: 1px; }
         }
     </style>
 </head>
 <body class="p-4 bg-gray-100">
     <div id="app">
         <div class="max-w-6xl mx-auto space-y-4">
-            <!-- 界面结构保持不变 -->
             <div class="flex flex-col md:flex-row gap-4">
                 <div class="flex-1">
                     <div class="flex items-center gap-4">
                         <input type="date" v-model="startDateString" 
                                class="p-2 border rounded-md w-full max-w-[200px]">
                         <div class="flex gap-2">
-                            <button @click="changeWeek(-1)" class="px-4 py-2 bg-gray-100 rounded-md">
+                            <button @click="changeWeek(-1)" class="px-4 py-2 bg-gray-100 rounded-md hover:bg-gray-200 transition">
                                 ◀ 上一週
                             </button>
-                            <button @click="changeWeek(1)" class="px-4 py-2 bg-gray-100 rounded-md">
+                            <button @click="changeWeek(1)" class="px-4 py-2 bg-gray-100 rounded-md hover:bg-gray-200 transition">
                                 下一週 ▶
                             </button>
                         </div>
@@ -107,34 +89,36 @@
                     <div class="flex gap-2">
                         <input type="text" v-model="newClient"
                                @keyup.enter="addClient"
-                               class="w-32 p-2 border rounded-md"
-                               placeholder="輸入客戶">
-                        <button @click="addClient" class="px-3 py-2 bg-blue-500 text-white rounded-md text-sm">
+                               class="w-32 p-2 border rounded-md flex-1"
+                               placeholder="輸入客戶名稱">
+                        <button @click="addClient" 
+                                class="px-3 py-2 bg-blue-500 text-white rounded-md text-sm hover:bg-blue-600 transition">
                             新增
                         </button>
                         <button @click="showManager=!showManager" 
-                                class="px-3 py-2 bg-gray-600 text-white rounded-md text-sm">
+                                class="px-3 py-2 bg-gray-600 text-white rounded-md text-sm hover:bg-gray-700 transition">
                             管理
                         </button>
                     </div>
                     
                     <div v-if="showManager" class="mt-2 p-4 bg-white rounded-md shadow">
-                        <div class="mb-4 flex gap-2">
+                        <div class="mb-4 flex gap-2 flex-wrap">
                             <button @click="exportClients" 
-                                    class="px-3 py-2 bg-green-500 text-white rounded-md text-sm">
+                                    class="px-3 py-2 bg-green-500 text-white rounded-md text-sm hover:bg-green-600 transition">
                                 匯出客戶
                             </button>
                             <button @click="importClients" 
-                                    class="px-3 py-2 bg-purple-500 text-white rounded-md text-sm">
+                                    class="px-3 py-2 bg-purple-500 text-white rounded-md text-sm hover:bg-purple-600 transition">
                                 匯入客戶
                             </button>
                             <input type="file" ref="fileInput" class="hidden" @change="handleFileUpload">
                         </div>
                         <div class="grid grid-cols-2 gap-2">
                             <div v-for="(client, index) in clients" :key="index" 
-                                 class="flex items-center justify-between p-2 bg-gray-50 rounded">
-                                <span>{{ client }}</span>
-                                <button @click="removeClient(index)" class="text-red-500">×</button>
+                                 class="flex items-center justify-between p-2 bg-gray-50 rounded hover:bg-gray-100 transition">
+                                <span class="truncate">{{ client }}</span>
+                                <button @click="removeClient(index)" 
+                                        class="text-red-500 hover:text-red-700 transition">×</button>
                             </div>
                         </div>
                     </div>
@@ -152,7 +136,7 @@
                                 週{{ ['一','二','三','四','五','六','日'][dayIndex] }}<br>
                                 <span class="text-xs text-gray-600 date-display" 
                                       :class="{'today': dayIndex === todayColumnIndex}">
-                                    {{ getDate(dayIndex) }}
+                                    {{ getFormattedDate(dayIndex) }}
                                 </span>
                             </th>
                         </tr>
@@ -175,7 +159,7 @@
                                         </option>
                                     </select>
                                     <div v-if="selections[tIndex][dIndex]" 
-                                         class="selected-name">
+                                         class="selected-name truncate max-w-[100px]">
                                         {{ selections[tIndex][dIndex] }}
                                     </div>
                                 </div>
@@ -188,7 +172,7 @@
             <div class="bg-white rounded-lg shadow p-4">
                 <h3 class="text-lg font-semibold mb-2">備忘錄</h3>
                 <textarea v-model="memo" 
-                          class="w-full p-2 border rounded-md h-32"
+                          class="w-full p-2 border rounded-md h-32 focus:ring-2 focus:ring-blue-200"
                           placeholder="輸入注意事項..."
                           maxlength="2000"></textarea>
                 <div class="text-sm text-gray-500 mt-1">{{ memo.length }}/2000 字</div>
@@ -199,6 +183,24 @@
     <script>
         const { createApp } = Vue;
 
+        // 全局日期處理函數
+        const getMonday = (date = new Date()) => {
+            const clone = new Date(date);
+            const day = clone.getDay();
+            const diff = clone.getDate() - day + (day === 0 ? -6 : 1);
+            clone.setDate(diff);
+            clone.setHours(0, 0, 0, 0);
+            return clone;
+        };
+
+        const normalizeDate = (date) => {
+            return new Date(Date.UTC(
+                date.getFullYear(),
+                date.getMonth(),
+                date.getDate()
+            ));
+        };
+
         createApp({
             data() {
                 const STORAGE_KEYS = {
@@ -208,18 +210,12 @@
                     MEMO: 'memo'
                 };
 
-                const getMonday = (date = new Date()) => {
-                    const day = date.getDay();
-                    const diff = date.getDate() - day + (day === 0 ? -6 : 1);
-                    return new Date(date.setDate(diff));
-                };
-
                 const loadFromStorage = (key, defaultValue) => {
                     try {
                         const stored = localStorage.getItem(key);
                         return stored ? JSON.parse(stored) : defaultValue;
                     } catch (e) {
-                        console.error(`Error loading ${key}:`, e);
+                        console.error(`加載 ${key} 失敗:`, e);
                         return defaultValue;
                     }
                 };
@@ -228,7 +224,7 @@
                     const stored = localStorage.getItem(STORAGE_KEYS.DATE);
                     if (stored) {
                         const parsed = new Date(stored);
-                        if (!isNaN(parsed.getTime())) return parsed;
+                        return !isNaN(parsed) ? getMonday(parsed) : getMonday();
                     }
                     return getMonday();
                 };
@@ -264,26 +260,20 @@
                     }
                 },
                 todayColumnIndex() {
-                    const normalizeDate = (date) => {
-                        return new Date(date.getFullYear(), date.getMonth(), date.getDate());
-                    };
-
                     const today = normalizeDate(new Date());
                     const weekStart = normalizeDate(this.startDate);
                     const weekEnd = new Date(weekStart);
-                    weekEnd.setDate(weekEnd.getDate() + 6);
+                    weekEnd.setUTCDate(weekEnd.getUTCDate() + 6);
 
                     if (today < weekStart || today > weekEnd) return -1;
-
-                    const diffDays = Math.floor((today - weekStart) / (1000 * 60 * 60 * 24));
-                    return diffDays;
+                    return Math.floor((today - weekStart) / (1000 * 60 * 60 * 24));
                 }
             },
             methods: {
-                getDate(dayIndex) {
+                getFormattedDate(dayIndex) {
                     const date = new Date(this.startDate);
                     date.setDate(date.getDate() + dayIndex);
-                    return `${date.getMonth() + 1}/${date.getDate()}`;
+                    return `${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getDate().toString().padStart(2, '0')}`;
                 },
                 getTimeSlotClass(tIndex) {
                     return tIndex < 2 ? 'time-slot-morning' :
@@ -298,15 +288,24 @@
                     if (name && !this.clients.includes(name)) {
                         this.clients.push(name);
                         this.newClient = '';
+                        this.cleanupSelections();
                     }
                 },
                 removeClient(index) {
                     this.clients.splice(index, 1);
+                    this.cleanupSelections();
+                },
+                cleanupSelections() {
+                    this.selections = this.selections.map(row => 
+                        row.map(client => 
+                            this.clients.includes(client) ? client : ''
+                        )
+                    );
                 },
                 changeWeek(offset) {
                     const newDate = new Date(this.startDate);
                     newDate.setDate(newDate.getDate() + offset * 7);
-                    this.startDate = newDate;
+                    this.startDate = getMonday(newDate);
                 },
                 exportClients() {
                     const data = JSON.stringify(this.clients);
@@ -329,12 +328,15 @@
                         const text = await file.text();
                         const imported = JSON.parse(text);
                         
-                        if (Array.isArray(imported)) {
+                        if (Array.isArray(imported) && imported.every(item => typeof item === 'string')) {
                             this.clients = [...new Set([...this.clients, ...imported])];
+                            this.cleanupSelections();
                             alert(`成功匯入 ${imported.length} 個客戶`);
+                        } else {
+                            throw new Error('無效的檔案格式');
                         }
                     } catch (error) {
-                        alert('檔案格式錯誤');
+                        alert(`匯入失敗: ${error.message}`);
                     }
                     event.target.value = '';
                 }

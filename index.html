@@ -5,7 +5,35 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>智能排班系統</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script>
+        // 嘗試載入 Vue.js，如果失敗則顯示錯誤訊息
+        try {
+            // 使用 IIFE 確保 Vue 被正確載入
+            (function() {
+                var script = document.createElement('script');
+
+                // 選擇 CDN 連結 (你可以根據需要更換)
+                const cdnUrl = 'https://cdn.jsdelivr.net/npm/vue@3.4.15/dist/vue.global.min.js'; // 使用 jsdelivr
+                // const cdnUrl = 'https://cdnjs.cloudflare.com/ajax/libs/vue/3.4.15/vue.global.min.js'; // 使用 cdnjs
+                // const cdnUrl = 'js/vue.global.js'; // 使用本地檔案，如果已經下載到本地
+
+                script.src = cdnUrl;
+                script.onload = function() {
+                    console.log('Vue.js 已成功載入');
+                    // Vue 載入完成後初始化應用程式
+                    initializeApp();
+                };
+                script.onerror = function() {
+                    console.error('載入 Vue.js 失敗，請檢查網路連線');
+                    document.getElementById('app').innerHTML = '<div class="text-red-500">載入 Vue.js 失敗，請檢查網路連線。請檢查你的網路連線，或嘗試更換 CDN 連結。</div>';
+                };
+                document.head.appendChild(script);
+            })();
+        } catch (error) {
+            console.error('載入 Vue.js 發生錯誤:', error);
+            document.getElementById('app').innerHTML = '<div class="text-red-500">載入 Vue.js 發生錯誤，請稍後再試</div>';
+        }
+    </script>
     <style>
         .compact-select { color: transparent !important; }
         .compact-select option { color: #000 !important; }
@@ -68,7 +96,8 @@
 </head>
 <body class="p-4 bg-gray-100">
     <div id="app">
-        <div class="max-w-6xl mx-auto space-y-4">
+        <!-- Vue.js 應用程式將在這裡渲染 -->
+        <div v-if="isVueLoaded" class="max-w-6xl mx-auto space-y-4">
             <div class="flex flex-col md:flex-row gap-4">
                 <div class="flex-1">
                     <div class="flex items-center gap-4">
@@ -181,190 +210,193 @@
     </div>
 
     <script>
-        const { createApp } = Vue;
+        function initializeApp() {
+            const { createApp } = Vue;
 
-        // 全局日期處理函數
-        const getMonday = (date = new Date()) => {
-            const clone = new Date(date);
-            const day = clone.getDay();
-            const diff = clone.getDate() - day + (day === 0 ? -6 : 1);
-            clone.setDate(diff);
-            clone.setHours(0, 0, 0, 0);
-            return clone;
-        };
+            // 全局日期處理函數
+            const getMonday = (date = new Date()) => {
+                const clone = new Date(date);
+                const day = clone.getDay();
+                const diff = clone.getDate() - day + (day === 0 ? -6 : 1);
+                clone.setDate(diff);
+                clone.setHours(0, 0, 0, 0);
+                return clone;
+            };
 
-        const normalizeDate = (date) => {
-            return new Date(Date.UTC(
-                date.getFullYear(),
-                date.getMonth(),
-                date.getDate()
-            ));
-        };
+            const normalizeDate = (date) => {
+                return new Date(Date.UTC(
+                    date.getFullYear(),
+                    date.getMonth(),
+                    date.getDate()
+                ));
+            };
 
-        createApp({
-            data() {
-                const STORAGE_KEYS = {
-                    DATE: 'startDate',
-                    CLIENTS: 'clients',
-                    SELECTIONS: 'selections',
-                    MEMO: 'memo'
-                };
+            createApp({
+                data() {
+                    const STORAGE_KEYS = {
+                        DATE: 'startDate',
+                        CLIENTS: 'clients',
+                        SELECTIONS: 'selections',
+                        MEMO: 'memo'
+                    };
 
-                const loadFromStorage = (key, defaultValue) => {
-                    try {
-                        const stored = localStorage.getItem(key);
-                        return stored ? JSON.parse(stored) : defaultValue;
-                    } catch (e) {
-                        console.error(`加載 ${key} 失敗:`, e);
-                        return defaultValue;
-                    }
-                };
-
-                const initDate = () => {
-                    const stored = localStorage.getItem(STORAGE_KEYS.DATE);
-                    if (stored) {
-                        const parsed = new Date(stored);
-                        return !isNaN(parsed) ? getMonday(parsed) : getMonday();
-                    }
-                    return getMonday();
-                };
-
-                return {
-                    startDate: initDate(),
-                    newClient: '',
-                    showManager: false,
-                    timeSlots: [
-                        '10:00～12:00',
-                        '13:00～15:00',
-                        '15:30～17:30',
-                        '18:30～20:30',
-                        '20:30～22:30'
-                    ],
-                    clients: loadFromStorage(STORAGE_KEYS.CLIENTS, []),
-                    selections: loadFromStorage(STORAGE_KEYS.SELECTIONS, 
-                        Array(5).fill().map(() => Array(7).fill(''))),
-                    memo: loadFromStorage(STORAGE_KEYS.MEMO, ''),
-                    storageKeys: STORAGE_KEYS
-                }
-            },
-            computed: {
-                startDateString: {
-                    get() {
-                        return this.startDate.toISOString().slice(0, 10);
-                    },
-                    set(value) {
-                        const newDate = new Date(value);
-                        if (!isNaN(newDate)) {
-                            this.startDate = getMonday(newDate);
+                    const loadFromStorage = (key, defaultValue) => {
+                        try {
+                            const stored = localStorage.getItem(key);
+                            return stored ? JSON.parse(stored) : defaultValue;
+                        } catch (e) {
+                            console.error(`加載 ${key} 失敗:`, e);
+                            return defaultValue;
                         }
+                    };
+
+                    const initDate = () => {
+                        const stored = localStorage.getItem(STORAGE_KEYS.DATE);
+                        if (stored) {
+                            const parsed = new Date(stored);
+                            return !isNaN(parsed) ? getMonday(parsed) : getMonday();
+                        }
+                        return getMonday();
+                    };
+
+                    return {
+                        isVueLoaded: true, // 確保 Vue 已經載入
+                        startDate: initDate(),
+                        newClient: '',
+                        showManager: false,
+                        timeSlots: [
+                            '10:00～12:00',
+                            '13:00～15:00',
+                            '15:30～17:30',
+                            '18:30～20:30',
+                            '20:30～22:30'
+                        ],
+                        clients: loadFromStorage(STORAGE_KEYS.CLIENTS, []),
+                        selections: loadFromStorage(STORAGE_KEYS.SELECTIONS, 
+                            Array(5).fill().map(() => Array(7).fill(''))),
+                        memo: loadFromStorage(STORAGE_KEYS.MEMO, ''),
+                        storageKeys: STORAGE_KEYS
                     }
                 },
-                todayColumnIndex() {
-                    const today = normalizeDate(new Date());
-                    const weekStart = normalizeDate(this.startDate);
-                    const weekEnd = new Date(weekStart);
-                    weekEnd.setUTCDate(weekEnd.getUTCDate() + 6);
+                computed: {
+                    startDateString: {
+                        get() {
+                            return this.startDate.toISOString().slice(0, 10);
+                        },
+                        set(value) {
+                            const newDate = new Date(value);
+                            if (!isNaN(newDate)) {
+                                this.startDate = getMonday(newDate);
+                            }
+                        }
+                    },
+                    todayColumnIndex() {
+                        const today = normalizeDate(new Date());
+                        const weekStart = normalizeDate(this.startDate);
+                        const weekEnd = new Date(weekStart);
+                        weekEnd.setUTCDate(weekEnd.getUTCDate() + 6);
 
-                    if (today < weekStart || today > weekEnd) return -1;
-                    return Math.floor((today - weekStart) / (1000 * 60 * 60 * 24));
-                }
-            },
-            methods: {
-                getFormattedDate(dayIndex) {
-                    const date = new Date(this.startDate);
-                    date.setDate(date.getDate() + dayIndex);
-                    return `${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getDate().toString().padStart(2, '0')}`;
-                },
-                getTimeSlotClass(tIndex) {
-                    return tIndex < 2 ? 'time-slot-morning' :
-                           tIndex < 4 ? 'time-slot-afternoon' :
-                           'time-slot-evening';
-                },
-                handleSelectClose(tIndex, dIndex, event) {
-                    this.$nextTick(() => event.target.blur());
-                },
-                addClient() {
-                    const name = this.newClient.trim();
-                    if (name && !this.clients.includes(name)) {
-                        this.clients.push(name);
-                        this.newClient = '';
-                        this.cleanupSelections();
+                        if (today < weekStart || today > weekEnd) return -1;
+                        return Math.floor((today - weekStart) / (1000 * 60 * 60 * 24));
                     }
                 },
-                removeClient(index) {
-                    this.clients.splice(index, 1);
-                    this.cleanupSelections();
-                },
-                cleanupSelections() {
-                    this.selections = this.selections.map(row => 
-                        row.map(client => 
-                            this.clients.includes(client) ? client : ''
-                        )
-                    );
-                },
-                changeWeek(offset) {
-                    const newDate = new Date(this.startDate);
-                    newDate.setDate(newDate.getDate() + offset * 7);
-                    this.startDate = getMonday(newDate);
-                },
-                exportClients() {
-                    const data = JSON.stringify(this.clients);
-                    const blob = new Blob([data], { type: 'application/json' });
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = `clients_${new Date().toISOString().slice(0, 10)}.json`;
-                    a.click();
-                    URL.revokeObjectURL(url);
-                },
-                importClients() {
-                    this.$refs.fileInput.click();
-                },
-                async handleFileUpload(event) {
-                    const file = event.target.files[0];
-                    if (!file) return;
-
-                    try {
-                        const text = await file.text();
-                        const imported = JSON.parse(text);
-                        
-                        if (Array.isArray(imported) && imported.every(item => typeof item === 'string')) {
-                            this.clients = [...new Set([...this.clients, ...imported])];
+                methods: {
+                    getFormattedDate(dayIndex) {
+                        const date = new Date(this.startDate);
+                        date.setDate(date.getDate() + dayIndex);
+                        return `${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getDate().toString().padStart(2, '0')}`;
+                    },
+                    getTimeSlotClass(tIndex) {
+                        return tIndex < 2 ? 'time-slot-morning' :
+                            tIndex < 4 ? 'time-slot-afternoon' :
+                            'time-slot-evening';
+                    },
+                    handleSelectClose(tIndex, dIndex, event) {
+                        this.$nextTick(() => event.target.blur());
+                    },
+                    addClient() {
+                        const name = this.newClient.trim();
+                        if (name && !this.clients.includes(name)) {
+                            this.clients.push(name);
+                            this.newClient = '';
                             this.cleanupSelections();
-                            alert(`成功匯入 ${imported.length} 個客戶`);
-                        } else {
-                            throw new Error('無效的檔案格式');
                         }
-                    } catch (error) {
-                        alert(`匯入失敗: ${error.message}`);
+                    },
+                    removeClient(index) {
+                        this.clients.splice(index, 1);
+                        this.cleanupSelections();
+                    },
+                    cleanupSelections() {
+                        this.selections = this.selections.map(row => 
+                            row.map(client => 
+                                this.clients.includes(client) ? client : ''
+                            )
+                        );
+                    },
+                    changeWeek(offset) {
+                        const newDate = new Date(this.startDate);
+                        newDate.setDate(newDate.getDate() + offset * 7);
+                        this.startDate = getMonday(newDate);
+                    },
+                    exportClients() {
+                        const data = JSON.stringify(this.clients);
+                        const blob = new Blob([data], { type: 'application/json' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `clients_${new Date().toISOString().slice(0, 10)}.json`;
+                        a.click();
+                        URL.revokeObjectURL(url);
+                    },
+                    importClients() {
+                        this.$refs.fileInput.click();
+                    },
+                    async handleFileUpload(event) {
+                        const file = event.target.files[0];
+                        if (!file) return;
+
+                        try {
+                            const text = await file.text();
+                            const imported = JSON.parse(text);
+                            
+                            if (Array.isArray(imported) && imported.every(item => typeof item === 'string')) {
+                                this.clients = [...new Set([...this.clients, ...imported])];
+                                this.cleanupSelections();
+                                alert(`成功匯入 ${imported.length} 個客戶`);
+                            } else {
+                                throw new Error('無效的檔案格式');
+                            }
+                        } catch (error) {
+                            alert(`匯入失敗: ${error.message}`);
+                        }
+                        event.target.value = '';
                     }
-                    event.target.value = '';
+                },
+                watch: {
+                    startDate: {
+                        handler(newVal) {
+                            localStorage.setItem(this.storageKeys.DATE, newVal.toISOString());
+                        },
+                        immediate: true
+                    },
+                    clients: {
+                        handler(newVal) {
+                            localStorage.setItem(this.storageKeys.CLIENTS, JSON.stringify(newVal));
+                        },
+                        deep: true
+                    },
+                    selections: {
+                        handler(newVal) {
+                            localStorage.setItem(this.storageKeys.SELECTIONS, JSON.stringify(newVal));
+                        },
+                        deep: true
+                    },
+                    memo(newVal) {
+                        localStorage.setItem(this.storageKeys.MEMO, JSON.stringify(newVal));
+                    }
                 }
-            },
-            watch: {
-                startDate: {
-                    handler(newVal) {
-                        localStorage.setItem(this.storageKeys.DATE, newVal.toISOString());
-                    },
-                    immediate: true
-                },
-                clients: {
-                    handler(newVal) {
-                        localStorage.setItem(this.storageKeys.CLIENTS, JSON.stringify(newVal));
-                    },
-                    deep: true
-                },
-                selections: {
-                    handler(newVal) {
-                        localStorage.setItem(this.storageKeys.SELECTIONS, JSON.stringify(newVal));
-                    },
-                    deep: true
-                },
-                memo(newVal) {
-                    localStorage.setItem(this.storageKeys.MEMO, JSON.stringify(newVal));
-                }
-            }
-        }).mount('#app');
+            }).mount('#app');
+        }
     </script>
 </body>
 </html>
